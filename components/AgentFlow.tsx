@@ -117,11 +117,12 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ data, activeNodeId, onNodeClick, 
         const nodeData = d.data;
         const statusColor = nodeData.status === AgentStatus.COMPLETED ? '#10b981' : 
                           nodeData.status === AgentStatus.FAILED ? '#ef4444' : 
+                          nodeData.status === AgentStatus.WAITING ? '#f59e0b' :
                           (nodeData.status === AgentStatus.THINKING || nodeData.status === AgentStatus.EXECUTING) ? '#a855f7' : '#71717a';
         
         tooltip.transition().duration(200).style('opacity', 1);
         tooltip.html(`
-          <div class="flex flex-col gap-2 min-w-[160px]">
+          <div class="flex flex-col gap-2 min-w-[180px]">
             <div class="flex items-center justify-between gap-4">
               <span class="text-[12px] font-bold text-white uppercase tracking-wider">${nodeData.label}</span>
               <span class="text-[10px] px-2 py-0.5 bg-white/10 rounded border border-white/5 font-mono text-zinc-400">P${nodeData.priority || 5}</span>
@@ -131,7 +132,20 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ data, activeNodeId, onNodeClick, 
               <div class="w-2 h-2 rounded-full ${nodeData.status === AgentStatus.THINKING ? 'animate-pulse' : ''}" style="background-color: ${statusColor}"></div>
               <span class="text-[10px] font-black uppercase tracking-widest" style="color: ${statusColor}">${nodeData.status}</span>
             </div>
-            <div class="text-[9px] text-zinc-500 font-medium">Type: ${nodeData.type}</div>
+            
+            <div class="grid grid-cols-2 gap-2 mt-1">
+               <div class="flex flex-col">
+                 <span class="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Compute</span>
+                 <span class="text-[9px] text-zinc-300 font-mono">${nodeData.tokens || 0} tk</span>
+               </div>
+               <div class="flex flex-col">
+                 <span class="text-[7px] text-zinc-500 font-black uppercase tracking-widest">Cost</span>
+                 <span class="text-[9px] text-emerald-400 font-mono font-bold">$${nodeData.cost?.toFixed(4) || '0.00'}</span>
+               </div>
+            </div>
+
+            <div class="text-[8px] text-zinc-600 font-black uppercase tracking-widest mt-1">Type: ${nodeData.type}</div>
+            
             ${nodeData.dependencies?.length ? `
               <div class="mt-1 flex flex-col gap-1">
                 <span class="text-[8px] text-zinc-600 font-black uppercase tracking-tighter">Blocking dependencies:</span>
@@ -231,7 +245,7 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ data, activeNodeId, onNodeClick, 
 
       el.append('text')
         .attr('dy', 65).attr('text-anchor', 'middle')
-        .attr('fill', '#fff').attr('font-size', '11px').attr('font-weight', '700').attr('letter-spacing', '0.05em')
+        .attr('fill', 'currentColor').attr('font-size', '11px').attr('font-weight', '700').attr('letter-spacing', '0.05em')
         .text(`${d.data.label} ${d.data.priority ? `(P${d.data.priority})` : ''}`);
 
       el.append('text')
@@ -244,7 +258,7 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ data, activeNodeId, onNodeClick, 
   }, [data, activeNodeId, onNodeClick, dynamicIcons]);
 
   return (
-    <div className="w-full h-full bg-[#020202] relative overflow-hidden">
+    <div className="w-full h-full relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] [background-size:32px_32px] opacity-40"></div>
       
       <div 
@@ -256,7 +270,7 @@ const AgentFlow: React.FC<AgentFlowProps> = ({ data, activeNodeId, onNodeClick, 
         <div className="space-y-3">
           <div className="flex items-center gap-4">
              <div className="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_20px_#a855f7] animate-pulse"></div>
-             <h3 className="text-[14px] font-black text-white uppercase tracking-[0.6em]">Flynt Topology Engine</h3>
+             <h3 className="text-[14px] font-black uppercase tracking-[0.6em]">Flynt Topology Engine</h3>
           </div>
           <div className="flex flex-col gap-1 pl-8">
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Protocol v4.0 (Cluster Matrix)</p>

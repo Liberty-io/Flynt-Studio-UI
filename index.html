@@ -15,13 +15,26 @@
         --glass-bg: rgba(5, 5, 5, 0.8);
         --glass-border: rgba(255, 255, 255, 0.05);
         --accent-purple: #a855f7;
+        --bg-color: #020202;
+        --text-color: #fafafa;
+        --panel-bg: rgba(5, 5, 5, 0.6);
       }
+      
+      [data-theme='light'] {
+        --glass-bg: rgba(244, 244, 245, 0.8);
+        --glass-border: rgba(0, 0, 0, 0.1);
+        --bg-color: #fcfcfc;
+        --text-color: #18181b;
+        --panel-bg: rgba(255, 255, 255, 0.9);
+      }
+
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #020202;
-        color: #fafafa;
+        background-color: var(--bg-color);
+        color: var(--text-color);
         margin: 0;
         overflow: hidden;
+        transition: background-color 0.4s ease, color 0.4s ease;
       }
       .mono {
         font-family: 'JetBrains Mono', monospace;
@@ -41,8 +54,8 @@
         background: #27272a;
       }
       .material-surface {
-        background: linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.9), inset 0 1px 1px rgba(255,255,255,0.03);
+        background: var(--panel-bg);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255,255,255,0.03);
         border: 1px solid var(--glass-border);
         backdrop-filter: blur(24px);
       }
@@ -55,11 +68,6 @@
         transform: translateY(-2px);
         background: rgba(255, 255, 255, 0.02);
         border-color: rgba(168, 85, 247, 0.2);
-      }
-      .glass-panel {
-        background: var(--glass-bg);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--glass-border);
       }
       @keyframes pulse-soft {
         0%, 100% { opacity: 0.5; }

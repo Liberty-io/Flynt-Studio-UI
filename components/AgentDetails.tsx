@@ -1,16 +1,18 @@
 
 import React, { useState } from 'react';
-// Added AgentType to the imports to resolve the error on line 121
 import { AgentNode, AgentStatus, AgentType } from '../types';
 import { COLORS } from '../constants';
 
 interface AgentDetailsProps {
   node: AgentNode | null;
   onClose: () => void;
+  onApprove?: () => void;
+  shadowEnabled?: boolean;
 }
 
-const AgentDetails: React.FC<AgentDetailsProps> = ({ node, onClose }) => {
+const AgentDetails: React.FC<AgentDetailsProps> = ({ node, onClose, onApprove, shadowEnabled }) => {
   const [copied, setCopied] = useState(false);
+  const [activeView, setActiveView] = useState<'output' | 'shadow' | 'telemetry'>('output');
 
   if (!node) return null;
 
@@ -25,142 +27,215 @@ const AgentDetails: React.FC<AgentDetailsProps> = ({ node, onClose }) => {
     }
   };
 
-  // Improved Markdown-lite renderer
   const renderContent = (content: string) => {
-    return content.split('\n').map((line, i) => {
-      if (line.startsWith('### ')) {
-        return <h3 key={i} className="text-[13px] font-bold text-white mt-6 mb-3 uppercase tracking-wider">{line.replace('### ', '')}</h3>;
+    const parts = content.split(/(```[\s\S]*?```)/g);
+    
+    return parts.map((part, i) => {
+      if (part.startsWith('```')) {
+        const code = part.replace(/```[a-z]*\n?/i, '').replace(/```$/, '');
+        return (
+          <div key={i} className="my-6 rounded-2xl overflow-hidden border border-white/10 bg-black/80 group/code relative shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-2.5 bg-white/5 border-b border-white/5">
+               <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div> Code Fragment
+               </span>
+               <button 
+                 onClick={() => {
+                   navigator.clipboard.writeText(code);
+                   setCopied(true);
+                   setTimeout(() => setCopied(false), 2000);
+                 }}
+                 className="opacity-0 group-hover/code:opacity-100 transition-opacity text-[10px] font-black text-purple-400 hover:text-purple-300 uppercase tracking-widest"
+               >
+                 {copied ? 'Copied' : 'Copy Block'}
+               </button>
+            </div>
+            <pre className="p-6 overflow-x-auto text-[13px] font-mono leading-relaxed text-zinc-100 selection:bg-purple-500/50">
+               <code className="block">{code.trim()}</code>
+            </pre>
+          </div>
+        );
       }
-      if (line.startsWith('- ')) {
-        return <li key={i} className="ml-5 text-[12px] text-zinc-300 list-disc mb-1.5">{line.replace('- ', '')}</li>;
-      }
-      if (line.startsWith('```')) {
-        return null; // Skip raw markers, container already handles mono
-      }
-      return <p key={i} className="text-[12px] text-zinc-300 leading-relaxed mb-2.5">{line}</p>;
+
+      return part.split('\n').map((line, j) => {
+        if (!line.trim()) return <div key={`${i}-${j}`} className="h-4" />;
+        
+        if (line.startsWith('### ')) {
+          return <h3 key={`${i}-${j}`} className="text-[13px] font-black text-white mt-8 mb-4 uppercase tracking-[0.2em] border-b border-white/5 pb-2">{line.replace('### ', '')}</h3>;
+        }
+        if (line.startsWith('- ')) {
+          return <li key={`${i}-${j}`} className="ml-5 text-[13px] text-zinc-300 font-mono list-none mb-3 flex items-start gap-3">
+            <span className="text-purple-500 mt-1">▹</span> {line.replace('- ', '')}
+          </li>;
+        }
+        // Citations
+        if (line.match(/^\[.*\]\(.*\)/)) {
+           return <a key={`${i}-${j}`} href={line.match(/\((.*)\)/)?.[1]} target="_blank" className="text-purple-400 hover:text-purple-300 underline text-xs font-mono block mb-2">{line.match(/\[(.*)\]/)?.[1]}</a>;
+        }
+        
+        const highlightedLine = line.replace(
+          /\b(const|let|var|function|return|if|else|import|export|from|class|await|async|def|class|print|for|in)\b/g,
+          '<span class="text-purple-400 font-bold">$1</span>'
+        ).replace(
+          /\b(true|false|null|undefined|None)\b/g,
+          '<span class="text-amber-400 font-bold">$1</span>'
+        ).replace(
+          /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
+          '<span class="text-emerald-400">$1</span>'
+        );
+
+        return (
+          <p 
+            key={`${i}-${j}`} 
+            className="text-[13px] text-zinc-400 leading-relaxed mb-4 font-mono selection:bg-purple-500/50"
+            dangerouslySetInnerHTML={{ __html: highlightedLine }}
+          />
+        );
+      });
     });
   };
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-[420px] bg-[#050505]/95 backdrop-blur-3xl border-l border-white/5 z-50 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.8)] animate-in slide-in-from-right duration-500 ease-out">
-      <div className="p-5 border-b border-white/5 flex items-center justify-between bg-white/5">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 12px ${color}` }}></div>
-          <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.3em]">Agent Insight Matrix</span>
+    <div className="absolute right-0 top-0 bottom-0 w-[520px] bg-[#050505]/98 backdrop-blur-3xl border-l border-white/10 z-50 flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.9)] animate-in slide-in-from-right duration-500 ease-out">
+      <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/40">
+        <div className="flex items-center gap-4">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 20px ${color}` }}></div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">Node Intelligence</span>
+            <span className="text-xs font-bold text-zinc-300 tracking-wide uppercase">{node.type}</span>
+          </div>
         </div>
-        <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-white transition-all">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-zinc-600 hover:text-white transition-all">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
-        <div className="space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-light text-white tracking-tight">{node.label}</h2>
-              <p className="text-[10px] text-zinc-600 font-mono tracking-tighter uppercase">{node.id}</p>
+      <div className="flex-1 overflow-y-auto p-10 space-y-12 custom-scrollbar">
+        <header className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-light text-white tracking-tight">{node.label}</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono text-zinc-700 bg-white/5 px-2 py-0.5 rounded border border-white/5">{node.id}</span>
+                <span className="text-[9px] font-mono text-zinc-600 uppercase">Priority P{node.priority}</span>
+              </div>
             </div>
-            <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] text-zinc-400 font-black uppercase tracking-widest">
-              P{node.priority}
-            </div>
+            {node.status === AgentStatus.WAITING && (
+               <div className="px-4 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/50 text-[10px] text-amber-500 font-black uppercase tracking-widest animate-pulse">
+                  Approval Required
+               </div>
+            )}
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
-              <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-1.5">Runtime Status</p>
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${node.status === AgentStatus.COMPLETED ? 'bg-emerald-500' : node.status === AgentStatus.FAILED ? 'bg-red-500' : 'bg-purple-500 animate-pulse'}`}></div>
-                <p className={`text-xs font-black tracking-widest uppercase ${
+          <div className="grid grid-cols-2 gap-6">
+            <div className="p-5 bg-white/[0.03] rounded-3xl border border-white/5 backdrop-blur-sm">
+              <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-3">Live Status</p>
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${node.status === AgentStatus.COMPLETED ? 'bg-emerald-500' : node.status === AgentStatus.WAITING ? 'bg-amber-500 animate-pulse' : 'bg-purple-500 animate-pulse'}`}></div>
+                <p className={`text-xs font-black tracking-[0.2em] uppercase ${
                   node.status === AgentStatus.COMPLETED ? 'text-emerald-400' :
-                  node.status === AgentStatus.FAILED ? 'text-red-400' : 'text-purple-400'
+                  node.status === AgentStatus.WAITING ? 'text-amber-400' : 'text-purple-400'
                 }`}>
                   {node.status}
                 </p>
               </div>
             </div>
-            <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
-              <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest mb-1.5">Ecosystem Role</p>
-              <p className="text-xs font-bold text-zinc-200 tracking-wide">{node.type}</p>
+            <div className="p-5 bg-white/[0.03] rounded-3xl border border-white/5 backdrop-blur-sm">
+              <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-3">Node Metrics</p>
+              <p className="text-xs font-bold text-zinc-200 tracking-wide mono">{node.tokens || 0} tk | ${node.cost?.toFixed(4) || '0.00'}</p>
             </div>
           </div>
-        </div>
+        </header>
 
-        {node.dependencies.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Execution Blockers</h3>
-            <div className="flex flex-wrap gap-2">
-              {node.dependencies.map(dep => (
-                <span key={dep} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-zinc-400 mono font-bold hover:bg-white/10 transition-colors cursor-default">
-                  {dep}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Human in the loop controls */}
+        {node.status === AgentStatus.WAITING && (
+           <div className="space-y-4 p-8 bg-amber-500/5 border border-amber-500/20 rounded-3xl animate-in zoom-in-95">
+              <h4 className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Critical Protocol Intercept</h4>
+              <p className="text-[12px] text-zinc-400 leading-relaxed font-mono">
+                The PlannerAgent has flagged this sequence as mission-critical. Please review the task description below and authorize the next phase.
+              </p>
+              <div className="flex gap-4 pt-2">
+                 <button 
+                  onClick={onApprove}
+                  className="flex-1 py-3 bg-amber-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/20"
+                 >
+                   Authorize Protocol
+                 </button>
+                 <button className="px-6 py-3 bg-zinc-900 border border-white/5 text-zinc-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-white transition-all">
+                   Abort
+                 </button>
+              </div>
+           </div>
         )}
 
-        <div className="space-y-4 flex-1 flex flex-col min-h-0">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Agent Output Stream</h3>
+        <div className="space-y-6 flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex gap-4">
+               <button 
+                 onClick={() => setActiveView('output')}
+                 className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'output' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+               >
+                 Main Stream
+               </button>
+               {shadowEnabled && (
+                 <button 
+                   onClick={() => setActiveView('shadow')}
+                   className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeView === 'shadow' ? 'text-amber-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                 >
+                   Shadow Bench
+                 </button>
+               )}
+            </div>
             {node.output && (
               <button 
                 onClick={handleCopy} 
-                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
+                className={`group flex items-center gap-2 px-4 py-2 rounded-xl border transition-all active:scale-95 ${
+                  copied ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-white/5 border-white/10 hover:bg-white/10'
+                }`}
               >
-                <span className={`text-[10px] font-black uppercase tracking-widest ${copied ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-200'}`}>
-                  {copied ? 'Copied' : 'Copy All'}
+                <span className={`text-[9px] font-black uppercase tracking-widest ${copied ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-200'}`}>
+                  {copied ? 'Captured' : 'Export'}
                 </span>
-                <svg className={`w-3.5 h-3.5 ${copied ? 'text-emerald-400' : 'text-zinc-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
               </button>
             )}
           </div>
           
-          <div className="flex-1 min-h-[350px] bg-[#080808] rounded-2xl border border-white/5 relative overflow-hidden flex flex-col group shadow-inner">
-             {node.output ? (
-               <div className="w-full h-full p-6 overflow-y-auto select-text custom-scrollbar focus:outline-none">
-                 {node.output.includes('```') || node.type === AgentType.CODER ? (
-                    <div className="font-mono text-[12px] leading-relaxed">
-                      {renderContent(node.output)}
-                    </div>
-                 ) : (
-                    <div className="text-[12px] text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap break-words selection:bg-purple-500/30">
-                      {node.output}
-                    </div>
-                 )}
-               </div>
-             ) : (
-               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 opacity-20">
-                 <div className="w-12 h-12 rounded-full border-2 border-dashed border-zinc-600 animate-spin-slow"></div>
-                 <p className="text-[10px] text-zinc-400 uppercase font-black tracking-widest">Awaiting Handoff</p>
-               </div>
-             )}
+          <div className="flex-1 min-h-[400px] bg-[#080808] rounded-3xl border border-white/5 relative overflow-hidden flex flex-col group shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)]">
+             <div className="w-full h-full p-8 overflow-y-auto select-text custom-scrollbar focus:outline-none scroll-smooth">
+                {activeView === 'output' && renderContent(node.output || '')}
+                {activeView === 'shadow' && renderContent(node.shadowOutput || 'Shadow benchmark data not available for this node.')}
+                {!node.output && node.status !== AgentStatus.WAITING && (
+                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 opacity-30">
+                     <div className="w-16 h-16 rounded-full border-2 border-dashed border-purple-500 animate-spin-slow"></div>
+                     <p className="text-[11px] text-zinc-500 uppercase font-black tracking-[0.5em] animate-pulse">Inference Lock</p>
+                   </div>
+                )}
+             </div>
              
-             {/* Dynamic Status Bar for ongoing tasks */}
              {(node.status === AgentStatus.THINKING || node.status === AgentStatus.EXECUTING) && (
-               <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden">
-                 <div className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 animate-loading-bar"></div>
+               <div className="absolute bottom-0 left-0 right-0 h-1.5 overflow-hidden">
+                 <div className="h-full bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 animate-loading-bar shadow-[0_-4px_15px_rgba(168,85,247,0.5)]"></div>
                </div>
              )}
           </div>
         </div>
 
-        <div className="space-y-6 pb-6">
-          <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Telemetry Metrics</h3>
-          <div className="space-y-4">
+        <div className="space-y-8 pb-10">
+          <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.4em]">Agent Telemetry</h3>
+          <div className="grid grid-cols-1 gap-6">
             {[
-              { label: 'Compute Latency', value: node.status === AgentStatus.COMPLETED ? '1.42s' : '---', progress: 85 },
-              { label: 'Token Density', value: node.status === AgentStatus.COMPLETED ? '1,280' : '---', progress: 62 },
-              { label: 'Decision Confidence', value: node.status === AgentStatus.COMPLETED ? '99.4%' : '---', progress: 94 },
+              { label: 'Reasoning Confidence', value: node.status === AgentStatus.COMPLETED ? '99.4%' : '---', progress: 94, color: 'text-emerald-400' },
+              { label: 'Ecosystem Sync', value: node.status === AgentStatus.COMPLETED ? 'Active' : '---', progress: 100, color: 'text-zinc-300' },
+              { label: 'Token Entropy', value: node.status === AgentStatus.COMPLETED ? '0.12' : '---', progress: 12, color: 'text-zinc-500' },
             ].map((m, i) => (
-              <div key={i} className="space-y-1.5">
+              <div key={i} className="space-y-2">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-600 font-bold uppercase tracking-tighter">{m.label}</span>
-                  <span className="text-zinc-300 font-mono font-bold">{m.value}</span>
+                  <span className="text-zinc-600 font-bold uppercase tracking-widest">{m.label}</span>
+                  <span className={`${m.color} font-mono font-bold`}>{m.value}</span>
                 </div>
                 <div className="h-1 bg-white/[0.02] rounded-full overflow-hidden border border-white/5">
                    <div 
-                    className="h-full bg-zinc-600 transition-all duration-1000 ease-out" 
+                    className={`h-full bg-zinc-700 transition-all duration-1500 ease-out ${i === 0 ? 'bg-emerald-500/50' : ''}`} 
                     style={{ width: node.status === AgentStatus.COMPLETED ? `${m.progress}%` : '0%' }}
                    ></div>
                 </div>
@@ -170,21 +245,16 @@ const AgentDetails: React.FC<AgentDetailsProps> = ({ node, onClose }) => {
         </div>
       </div>
 
-      <div className="p-6 border-t border-white/5 bg-white/[0.01]">
-        <button className="w-full py-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[10px] font-black uppercase rounded-xl border border-white/10 transition-all tracking-[0.3em] active:scale-[0.98]">
-          View Detailed Trace Log
-        </button>
-      </div>
-
       <style>{`
         @keyframes loading-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
         @keyframes spin-slow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .animate-spin-slow { animation: spin-slow 8s linear infinite; }
-        .animate-loading-bar { animation: loading-bar 2s ease-in-out infinite; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .animate-spin-slow { animation: spin-slow 12s linear infinite; }
+        .animate-loading-bar { animation: loading-bar 2.5s ease-in-out infinite; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+        .selection\\:bg-purple-500\\/50 ::selection { background-color: rgba(168, 85, 247, 0.5) !important; color: white !important; }
       `}</style>
     </div>
   );

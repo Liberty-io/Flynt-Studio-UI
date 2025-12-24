@@ -216,19 +216,26 @@ const ModelsAndTools: React.FC<ModelsAndToolsProps> = ({ enabledTools, onToggleT
   const [favorites, setFavorites] = useState<string[]>([]);
   const [activeMaintenanceInfo, setActiveMaintenanceInfo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'Intelligence' | 'Data Science' | 'Ops' | 'Core'>('all');
+  
+  const [tooltipData, setTooltipData] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const filteredModels = useMemo(() => {
     if (activeTab !== 'all' && activeTab !== 'Core') return [];
+    const term = searchTerm.toLowerCase();
     return MODELS.filter(m => 
-      m.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      m.description.toLowerCase().includes(searchTerm.toLowerCase())
+      m.name.toLowerCase().includes(term) || 
+      m.description.toLowerCase().includes(term) ||
+      m.type.toLowerCase().includes(term)
     );
   }, [searchTerm, activeTab]);
 
   const filteredTools = useMemo<Tool[]>(() => {
+    const term = searchTerm.toLowerCase();
     return TOOLS.filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           t.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = t.name.toLowerCase().includes(term) || 
+                           t.description.toLowerCase().includes(term) ||
+                           t.category.toLowerCase().includes(term);
+      
       if (activeTab === 'all') return matchesSearch;
       if (activeTab === 'Intelligence') return matchesSearch && (t.category === 'RAG & Intelligence' || t.category === 'MCP');
       if (activeTab === 'Ops') return matchesSearch && (t.category === 'DevOps' || t.category === 'MLOps');
@@ -252,41 +259,65 @@ const ModelsAndTools: React.FC<ModelsAndToolsProps> = ({ enabledTools, onToggleT
 
   return (
     <div className="flex-1 overflow-y-auto p-12 bg-[#050505] animate-in fade-in duration-700 relative custom-scrollbar">
+      
+      {tooltipData && (
+        <div 
+          className="fixed pointer-events-none z-[200] px-4 py-2.5 rounded-xl bg-zinc-900 border border-white/10 shadow-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200 ease-out"
+          style={{ 
+            left: tooltipData.x + 15, 
+            top: tooltipData.y + 15,
+            maxWidth: '280px' 
+          }}
+        >
+          <div className="flex flex-col gap-1">
+             <span className="text-[9px] font-black text-purple-500 uppercase tracking-widest">Resource Specs</span>
+             <p className="text-[11px] text-zinc-300 leading-relaxed font-medium">
+               {tooltipData.text}
+             </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto space-y-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+        {/* Unified Search and Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pb-8 border-b border-white/5">
           <div className="space-y-4">
              <div className="flex items-center gap-3">
                 <div className="w-2 h-8 bg-purple-600 rounded-full shadow-[0_0_15px_#a855f7]"></div>
                 <h1 className="text-4xl font-light text-white tracking-tight">Registry <span className="text-zinc-500 font-medium">Explorer</span></h1>
              </div>
-            <p className="text-zinc-500 max-w-2xl text-sm leading-relaxed tracking-wide">
-              Flynt Studio's unified resource platform. Manage RAG pipelines, DS engines, and MLOps deployments within a high-density material ecosystem.
+            <p className="text-zinc-500 max-w-xl text-sm leading-relaxed tracking-wide">
+              Filter and initialize your Flynt Studio agentic toolbelt. Search by name, purpose, or category.
             </p>
           </div>
           
-          <div className="flex flex-col gap-4 items-end">
-            <div className="relative w-80">
+          <div className="flex flex-col gap-5 items-end">
+            <div className="relative group w-96">
+              <div className="absolute inset-0 bg-purple-500/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
               <input
                 type="text"
-                placeholder="Search resources..."
+                placeholder="Search models or tools..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 material-surface"
+                className="relative w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all material-surface"
               />
-              <svg className="w-5 h-5 absolute left-4 top-3 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg className="w-5 h-5 absolute left-4 top-4 text-zinc-600 group-focus-within:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-4 text-zinc-500 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
             </div>
             
-            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 backdrop-blur-md material-surface">
+            <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 backdrop-blur-md">
                {(['all', 'Intelligence', 'Data Science', 'Ops', 'Core'] as const).map((tab) => (
                  <button
                    key={tab}
                    onClick={() => setActiveTab(tab)}
                    className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all duration-300 ${
-                     activeTab === tab 
-                       ? 'bg-purple-600 text-white shadow-lg' 
-                       : 'text-zinc-500 hover:text-zinc-300'
+                     activeTab === tab ? 'bg-purple-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'
                    }`}
                  >
                    {tab}
@@ -306,24 +337,15 @@ const ModelsAndTools: React.FC<ModelsAndToolsProps> = ({ enabledTools, onToggleT
               {filteredModels.map((model) => (
                 <div 
                   key={model.id} 
-                  className="group material-card p-6 rounded-2xl material-surface border border-white/5 flex flex-col justify-between h-[280px] relative"
-                  title={model.description}
+                  className="group material-card p-6 rounded-2xl material-surface border border-white/5 flex flex-col justify-between h-[280px] relative cursor-help"
+                  onMouseEnter={(e) => setTooltipData({ text: model.description, x: e.clientX, y: e.clientY })}
+                  onMouseMove={(e) => setTooltipData({ text: model.description, x: e.clientX, y: e.clientY })}
+                  onMouseLeave={() => setTooltipData(null)}
                 >
                   <div>
-                    <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-4 block">
-                      {model.type}
-                    </span>
+                    <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-4 block">{model.type}</span>
                     <h3 className="text-lg font-semibold text-zinc-100 mb-2 tracking-tight">{model.name}</h3>
                     <p className="text-[10px] text-zinc-500 leading-relaxed line-clamp-2">{model.description}</p>
-                    
-                    {model.status !== 'High Performance' && model.status !== 'Active' && (
-                      <button 
-                        onClick={() => onReportIssue(model.name, 'issue reported', 'error')}
-                        className="mt-3 px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all"
-                      >
-                        Report Issue
-                      </button>
-                    )}
                   </div>
                   <div className="flex justify-between items-center pt-4 border-t border-white/5">
                     <span className="text-[9px] text-zinc-400 mono">{model.specs.context || model.specs.latency}</span>
@@ -336,12 +358,11 @@ const ModelsAndTools: React.FC<ModelsAndToolsProps> = ({ enabledTools, onToggleT
         )}
 
         <section className="space-y-12 pb-20">
+          {/* Fix for line 368: adding explicit type assertion to handle loose typing of Object.entries in some environments */}
           {(Object.entries(toolsByCategory) as [string, Tool[]][]).map(([category, tools]) => (
             <div key={category} className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center gap-4">
-                <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] bg-white/5 px-4 py-1.5 rounded-xl border border-white/5">
-                  {category}
-                </h3>
+                <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] bg-white/5 px-4 py-1.5 rounded-xl border border-white/5">{category}</h3>
                 <div className="h-[1px] flex-1 bg-white/5"></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -358,103 +379,58 @@ const ModelsAndTools: React.FC<ModelsAndToolsProps> = ({ enabledTools, onToggleT
                         isActive ? 'border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.1)]' : 'border-white/5 hover:border-white/20'
                       }`}
                       onClick={() => tool.status === 'online' && onToggleTool(tool.name)}
-                      title={tool.description}
+                      onMouseEnter={(e) => setTooltipData({ text: tool.description, x: e.clientX, y: e.clientY })}
+                      onMouseMove={(e) => setTooltipData({ text: tool.description, x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => setTooltipData(null)}
                     >
-                      {/* Top Action Bar */}
                       <div className="flex justify-between items-start mb-4">
-                        <div className="text-3xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">
-                          {tool.icon}
-                        </div>
+                        <div className="text-3xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]">{tool.icon}</div>
                         <div className="flex items-center gap-2">
-                           {/* Status Indicator / Report Outage */}
                            <div 
-                             className={`w-2 h-2 rounded-full cursor-help ${tool.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : isMaintenance ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}
-                             title={`Status: ${tool.status}`}
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               if (isMaintenance) setActiveMaintenanceInfo(tool.id);
-                               if (isOffline) onReportIssue(tool.name, "Critical outage reported.", "error");
-                             }}
+                             className={`w-2 h-2 rounded-full ${tool.status === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : isMaintenance ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}
+                             onClick={(e) => { e.stopPropagation(); if (isMaintenance) setActiveMaintenanceInfo(tool.id); }}
                            ></div>
-
-                           {/* Documentation Link */}
-                           {tool.docLink && (
-                             <a 
-                               href={tool.docLink} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="opacity-0 group-hover/tool:opacity-100 transition-opacity p-1 hover:bg-white/10 rounded"
-                               onClick={(e) => e.stopPropagation()}
-                               title="View Documentation"
-                             >
-                               <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                               </svg>
-                             </a>
-                           )}
                         </div>
                       </div>
                       
-                      {/* Title and Prominent Toggle */}
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-1">
+                        <div className="flex items-center gap-2 flex-1 truncate">
                           <h4 className={`text-sm font-bold tracking-tight truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>{tool.name}</h4>
-                          <button 
-                            onClick={(e) => toggleFavorite(tool.id, e)}
-                            className={`transition-transform hover:scale-125 ${isStarred ? 'text-amber-400' : 'text-zinc-800'}`}
-                          >
-                            ★
-                          </button>
+                          <button onClick={(e) => toggleFavorite(tool.id, e)} className={`transition-transform hover:scale-125 ${isStarred ? 'text-amber-400' : 'text-zinc-800'}`}>★</button>
                         </div>
-
                         {tool.status === 'online' && (
-                          <div 
-                            className={`w-9 h-5 rounded-full p-1 transition-colors duration-300 ${isActive ? 'bg-purple-600' : 'bg-white/10'}`}
-                            onClick={(e) => { e.stopPropagation(); onToggleTool(tool.name); }}
-                          >
+                          <div className={`w-9 h-5 rounded-full p-1 transition-colors duration-300 ${isActive ? 'bg-purple-600' : 'bg-white/10'}`}>
                             <div className={`w-3 h-3 bg-white rounded-full transition-transform duration-300 shadow-md ${isActive ? 'translate-x-4' : 'translate-x-0'}`}></div>
                           </div>
                         )}
                       </div>
 
-                      <p className="text-[10px] text-zinc-500 leading-relaxed font-medium line-clamp-2" title={tool.description}>
-                        {tool.description}
-                      </p>
+                      <p className="text-[10px] text-zinc-500 leading-relaxed font-medium line-clamp-2">{tool.description}</p>
 
-                      {/* Maintenance / Offline Overlays */}
-                      {isMaintenance && activeMaintenanceInfo === tool.id && (
-                        <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[9px] text-amber-400 mono">
-                          Next: {tool.maintenanceSchedule}
-                        </div>
-                      )}
-
-                      {/* Hover Overlay for Use Cases (Only for Enabled or Online Tools) */}
                       {tool.status === 'online' && (
                         <div className="absolute inset-0 bg-zinc-950/95 p-6 flex flex-col justify-center opacity-0 group-hover/tool:opacity-100 transition-all duration-300 pointer-events-none z-10">
                            <h5 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Core Use Cases</h5>
                            <ul className="space-y-2">
-                              {tool.useCases.map((useCase, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-[10px] text-zinc-300 font-medium">
-                                   <div className="w-1 h-1 bg-purple-500 rounded-full"></div>
-                                   {useCase}
+                              {tool.useCases.slice(0, 3).map((useCase, idx) => (
+                                <li key={idx} className="flex items-center gap-2 text-[10px] text-zinc-300 font-medium truncate">
+                                   <div className="w-1 h-1 bg-purple-500 rounded-full"></div>{useCase}
                                 </li>
                               ))}
                            </ul>
-                           <div className="mt-6 pt-4 border-t border-white/5">
-                              <span className="text-[9px] text-zinc-600 uppercase font-black tracking-widest">
-                                {isActive ? 'Running Interface' : 'Click to Initialize'}
-                              </span>
-                           </div>
                         </div>
                       )}
-                      
-                      {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500 shadow-[0_0_10px_#a855f7] z-20"></div>}
                     </div>
                   );
                 })}
               </div>
             </div>
           ))}
+          {filteredTools.length === 0 && filteredModels.length === 0 && (
+            <div className="py-20 text-center space-y-4">
+              <div className="text-4xl">🔎</div>
+              <p className="text-zinc-500 text-sm font-medium">No tool matching "{searchTerm}" found in Registry.</p>
+            </div>
+          )}
         </section>
       </div>
     </div>
